@@ -3,7 +3,8 @@ using Northwind.EntityModels;// To use AddNorthwindContext method.
 
 #region Configure the web server host and services.
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddControllers();
+    //.AddApplicationPart(typeof(Northwind.WebApi.Controllers.WeatherForecastController).Assembly);
 builder.Services.AddRazorPages();
 builder.Services.AddNorthwindContext();
 
@@ -16,8 +17,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Implementing an anonymous inline delegate as middleware
-// to intercept HTTP requests and responses.
+app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+// 1. ADD THIS HERE: Forces .NET to match URLs to Controllers/Pages BEFORE your custom code runs
+app.UseRouting();
+
+// 2. YOUR CUSTOM MIDDLEWARE: Now context.GetEndpoint() will actually work!
 app.Use(async (HttpContext context, Func<Task> next) =>
 {
     RouteEndpoint? rep = context.GetEndpoint() as RouteEndpoint;
@@ -28,29 +35,19 @@ app.Use(async (HttpContext context, Func<Task> next) =>
     }
     if (context.Request.Path == "/bonjour")
     {
-        // In the case of a match on URL path, this becomes a terminating
-        // delegate that returns so does not call the next delegate.
         await context.Response.WriteAsync("Bonjour Monde!");
         return;
     }
-    // We could modify the request before calling the next delegate.
     await next();
-    // We could modify the response after calling the next delegate.
 });
 
-
-
-
-app.UseHttpsRedirection();
-
-app.UseDefaultFiles(); // index.html, default.html, and so on.
-app.UseStaticFiles();
-
+// 3. MAP ALL ENDPOINTS 
 app.MapRazorPages();
-//app.MapGet("/", () => $"Hello World! {app.Environment.EnvironmentName}");
-app.MapGet("/hello", () => $"Environment is {app.Environment.EnvironmentName}");
+app.MapGet("/", () => $"Hello World! {app.Environment.EnvironmentName}");
+app.MapControllers(); // This is perfectly fine here now that UseRouting is declared above
 #endregion
 
-// Start the web server, host the website, and wait for requests.
-app.Run(); // This is a thread-blocking call.
+// Start the web server
+app.Run();
 WriteLine("This executes after the web server has stopped!");
+
